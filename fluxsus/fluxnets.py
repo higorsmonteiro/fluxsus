@@ -139,4 +139,4 @@ class FluxNets:
 
     def to_gml(self, output):
         if self.G is not None:
-            nx.write_gml(G, os.path.join(output))
+            nx.write_gml(self.G, os.path.join(output))
