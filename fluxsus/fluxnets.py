@@ -1,3 +1,11 @@
+'''
+    Interface to simplify operations of creation of the networks and manipulations.
+    Library vocab: Networkx
+
+    Author: Higor S. Monteiro
+    email: higor.monteiro@fisica.ufc.br
+'''
+
 import os
 import glob
 import numpy as np
@@ -11,6 +19,19 @@ import networkx as nx
 
 from fluxsus.DBFIX import DBFIX
 import fluxsus.utils as utils
+
+
+class FluxNets1:
+    '''
+    
+    '''
+    def __init__(self):
+        '''
+        
+        '''
+        self.G = None
+        self.nodes_metadata = None
+        self.edges_metadata = None
 
 class FluxNets:
     '''
