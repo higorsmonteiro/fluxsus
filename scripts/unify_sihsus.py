@@ -45,6 +45,8 @@ def export_sihsus_year(uf : str, year : int, path_to_files : str):
             pass
     
     sih_df = pd.concat(sih_df, axis=0)
+    sih_df["DT_INTER"] = pd.to_datetime(sih_df["DT_INTER"], format="%Y%m%d", errors="coerce")
+    sih_df["DT_SAIDA"] = pd.to_datetime(sih_df["DT_SAIDA"], format="%Y%m%d", errors="coerce")
     return sih_df
     
 if __name__=="__main__":
@@ -53,7 +55,7 @@ if __name__=="__main__":
     uf = "CE"
     input_folder = os.path.join(datapath, "opendatasus", "sihsus", "DBF")
     output_folder = os.path.join(datapath, "opendatasus", "sihsus", "PARQUET")
-    for year in range(2008, 2011+1):
+    for year in range(2008, 2022+1):
         print(f'ano {year} ... ', end='')
         sih_df = export_sihsus_year(uf, year, input_folder)
         sih_df.to_parquet(os.path.join(output_folder, f'RD{uf}_{year}.parquet'))

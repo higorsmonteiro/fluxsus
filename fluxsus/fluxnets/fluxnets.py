@@ -34,6 +34,11 @@ class BaseFlux:
         self.geodata_df = geodata_df.copy()
         self.count_sum_edge_with_code = None
         self.cnes_df = self.cnes_df.merge(self.geodata_df[["MACRO_ID", "CRES_ID", "MACRO_NOME", "GEOCOD6"]], left_on="CODUFMUN", right_on="GEOCOD6", how="left").drop("GEOCOD6", axis=1)
+        self.cnes_df["NUMLEITOS"] = self.cnes_df[["QTLEITP1", "QTLEITP2", "QTLEITP3"]].sum(axis=1)
+
+        leitos_aux = self.cnes_df.groupby(["CODUFMUN"])["NUMLEITOS"].sum().reset_index().rename({"CODUFMUN": "GEOCOD6"}, axis=1)
+        self.geodata_df = self.geodata_df.merge(leitos_aux, on="GEOCOD6", how="left")
+        self.geodata_df["NUMLEITOS"] = self.geodata_df["NUMLEITOS"].apply(lambda x: 1 if pd.isna(x) or x==0 else x)
 
         self.graph = None
         self.code_to_muni_label = None
@@ -68,6 +73,7 @@ class CityFlux(BaseFlux):
         macro_names = self.geodata_df["MACRO_NOME"].tolist()
         cres_ids = self.geodata_df["CRES_ID"].tolist()
         lat_, lon_ = self.geodata_df["municip_lat"].tolist(), self.geodata_df["municip_lon"].tolist()
+        numleitos = self.geodata_df["NUMLEITOS"].tolist()
 
         # -- return -1 if city code not included in the network
         self.code_to_muni_label = defaultdict(lambda: -1, { municip_codes[n]: n for n in range(len(municip_codes)) })
@@ -80,6 +86,7 @@ class CityFlux(BaseFlux):
                          'macro_id': macro_ids[label],
                          'macro_name': macro_names[label], 
                          'cres_id': cres_ids[label],
+                         'numleitos': numleitos[label],
                          'lat': lat_[label],
                          'lon': lon_[label] } )
             )
