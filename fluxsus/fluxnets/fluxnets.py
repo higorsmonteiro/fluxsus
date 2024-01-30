@@ -1,5 +1,5 @@
 '''
-    Interface to simplify operations of creation of the networks and manipulations.
+    Interface to simplify the creation of networks given the formatted data.
     Library vocab: Networkx (include graph-tool later)
 
     Author: Higor S. Monteiro
@@ -10,9 +10,7 @@ import os
 import numpy as np
 import pandas as pd
 from collections import defaultdict
-
 import networkx as nx
-
 
 class BaseFlux:
     def __init__(self, cnes_df, geodata_df):
@@ -20,7 +18,10 @@ class BaseFlux:
             Interface to create flux networks referring to hospital admissions. A flux is defined when 
             an individual from a given city is admitted to a hospital in another city. Considering the data 
             source used, the information flowing within the network can be either individuals or the total 
-            cost of procedures during an admission.
+            cost of procedures performed during the admissions.
+
+            The input data follow specific formats and they had gone through a preprocessing stage before 
+            their use in this class. The preprocessing stage is shown in the scripts that follow this class.
 
             Args:
             -----
@@ -28,6 +29,11 @@ class BaseFlux:
                     pandas.DataFrame.
                 geodata_df:
                     pandas.DataFrame.
+
+            Attributes:
+            -----------
+                graph:
+                    networkx.DiGraph or networkx.Graph.
         '''
         self.sih_df = None
         self.cnes_df = cnes_df.copy()
@@ -57,7 +63,6 @@ class BaseFlux:
 
 
 class CityFlux(BaseFlux):
-    
     def define_network(self):
         '''
             Define the nodes (cities) of the network and their metadata.
@@ -118,19 +123,13 @@ class CityFlux(BaseFlux):
         # -- get target node info
         self.count_sum_edge_with_code = self.count_sum_edge_with_code.merge(self.geodata_df[["GEOCOD6", "MACRO_ID", "CRES_ID", "MACRO_NOME"]], left_on="MUNIC_MOV", right_on="GEOCOD6", how="left")
         self.count_sum_edge_with_code = self.count_sum_edge_with_code.rename({"MACRO_ID": "target_macro", "CRES_ID": "target_cres", "MACRO_NOME": "target_macro_nome"}, axis=1)
-        # -- auxiliary metadata (for drawing)
+        # -- auxiliary metadata (probably for drawing)
         self.count_sum_edge_with_code["same_micro"] = self.count_sum_edge_with_code[["source_cres", "target_cres"]].apply(lambda x: x["source_cres"] if x["source_cres"]==x["target_cres"] else -1, axis=1)
         self.count_sum_edge_with_code["same_macro"] = self.count_sum_edge_with_code[["source_macro", "target_macro"]].apply(lambda x: x["source_macro"] if x["source_macro"]==x["target_macro"] else -1, axis=1)
 
         self.count_sum_edge_with_code["MUNIC_RES"] = self.count_sum_edge_with_code["MUNIC_RES"].apply(lambda x: self.code_to_muni_label[x])
         self.count_sum_edge_with_code["MUNIC_MOV"] = self.count_sum_edge_with_code["MUNIC_MOV"].apply(lambda x: self.code_to_muni_label[x])
         count_sum_edge_with_label = self.count_sum_edge_with_code[(self.count_sum_edge_with_code["MUNIC_RES"]!=-1) & (self.count_sum_edge_with_code["MUNIC_MOV"]!=-1)]
-        
-        # -- later
-        #edges_with_labels_count['weight_normed'] = edges_with_labels_count['count']/edges_with_labels_count['count'].sum()
-        #edges_with_labels_count['left_ADS'] = [ macro_ids[i[0]] for i in edges_with_labels_count.index ]
-        #edges_with_labels_count['right_ADS'] = [ macro_ids[i[1]] for i in edges_with_labels_count.index ]
-        #edges_with_labels_count['same ADS'] = edges_with_labels_count[['left_ADS', 'right_ADS']].apply(lambda x: '-1' if x['left_ADS']==x['right_ADS'] else x['left_ADS'], axis=1)
 
         self.edges_metadata = []
         for edge, row in count_sum_edge_with_label.iterrows():
