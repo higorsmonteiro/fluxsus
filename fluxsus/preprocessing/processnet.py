@@ -3,10 +3,15 @@ import networkx as nx
 from fluxsus.utils_ import f_infomap
 
 class NetProperties:
+    '''
+        Interface for some calculations on the built networks (city flux and hospitals).
+
+        Args:
+        -----
+            graph:
+                networkx.DiGraph.
+    '''
     def __init__(self, graph) -> None:
-        ''' 
-        
-        '''
         self.graph = graph
 
     def calculate_in_flow(self, weight_people_col=None, weight_cost_col=None, 
@@ -111,7 +116,7 @@ class NetProperties:
 
     def process_infomap_graph(self):
         ''' 
-            return graph with new node metadata on communities.
+            return graph with new node metadata on infomap modules.
         '''
         # -- community algorithms
         infomap_admcount = f_infomap(self.graph, weight_col='admission_count')
@@ -126,7 +131,7 @@ class NetProperties:
     
     def process_louvain_graph(self):
         ''' 
-            return graph with new node metadata on communities.
+            return graph with new node metadata on louvain communities.
         '''
         # -- create new weight based on the number of hospital beds
 

@@ -1,4 +1,8 @@
+import pandas as pd
+from collections import defaultdict
 from infomap import Infomap
+
+from fluxsus.DBFIX import DBFIX
 
 def f_infomap(graph, weight_col="admission_count"):
     '''

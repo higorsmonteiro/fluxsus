@@ -39,12 +39,6 @@ class BaseFlux:
         self.cnes_df = cnes_df.copy()
         self.geodata_df = geodata_df.copy()
         self.count_sum_edge_with_code = None
-        self.cnes_df = self.cnes_df.merge(self.geodata_df[["MACRO_ID", "CRES_ID", "MACRO_NOME", "GEOCOD6"]], left_on="CODUFMUN", right_on="GEOCOD6", how="left").drop("GEOCOD6", axis=1)
-        self.cnes_df["NUMLEITOS"] = self.cnes_df[["QTLEITP1", "QTLEITP2", "QTLEITP3"]].sum(axis=1)
-
-        leitos_aux = self.cnes_df.groupby(["CODUFMUN"])["NUMLEITOS"].sum().reset_index().rename({"CODUFMUN": "GEOCOD6"}, axis=1)
-        self.geodata_df = self.geodata_df.merge(leitos_aux, on="GEOCOD6", how="left")
-        self.geodata_df["NUMLEITOS"] = self.geodata_df["NUMLEITOS"].apply(lambda x: 1 if pd.isna(x) or x==0 else x)
 
         self.graph = None
         self.code_to_muni_label = None
@@ -75,10 +69,10 @@ class CityFlux(BaseFlux):
         municip_codes = self.geodata_df["GEOCOD6"].tolist()
         municip_names = self.geodata_df["NM_MUNICIP"].tolist()
         macro_ids = self.geodata_df["MACRO_ID"].tolist()
+        macro_new_ids = self.geodata_df["MACRO_ID_PROPOSAL"].tolist() # -- optional
         macro_names = self.geodata_df["MACRO_NOME"].tolist()
         cres_ids = self.geodata_df["CRES_ID"].tolist()
         lat_, lon_ = self.geodata_df["municip_lat"].tolist(), self.geodata_df["municip_lon"].tolist()
-        numleitos = self.geodata_df["NUMLEITOS"].tolist()
 
         # -- return -1 if city code not included in the network
         self.code_to_muni_label = defaultdict(lambda: -1, { municip_codes[n]: n for n in range(len(municip_codes)) })
@@ -89,9 +83,9 @@ class CityFlux(BaseFlux):
                 (label, {'municipio_code': mun_code, 
                          'municipio_name': municip_names[label],
                          'macro_id': macro_ids[label],
+                         'macro_new_id': macro_new_ids[label], # -- optional
                          'macro_name': macro_names[label], 
                          'cres_id': cres_ids[label],
-                         'numleitos': numleitos[label],
                          'lat': lat_[label],
                          'lon': lon_[label] } )
             )
@@ -108,6 +102,11 @@ class CityFlux(BaseFlux):
             Metadata refers to the name and code of a city, and the ids of the
             micro/macro regions for which the city belongs to. 
         '''
+        # -- define the period of the data that was used to define the fluxes.
+        if 'COMPETEN' in sih_df.columns:
+            self.graph.graph['init_period'] = sih_df["COMPETEN"].min()
+            self.graph.graph['final_period'] = sih_df["COMPETEN"].max()
+
         if icd_filter is not None:
             sih_df["DIAG_PRINC3"] = sih_df["DIAG_PRINC"].apply(lambda x: x[:3])
             if type(icd_filter)==list:
@@ -162,6 +161,7 @@ class CityHospitalFlux(BaseFlux):
         municip_codes = self.geodata_df["GEOCOD6"].tolist()
         municip_names = self.geodata_df["NM_MUNICIP"].tolist()
         macro_ids = self.geodata_df["MACRO_ID"].tolist()
+        macro_new_ids = self.geodata_df["MACRO_ID_PROPOSAL"].tolist() # -- optional
         macro_names = self.geodata_df["MACRO_NOME"].tolist()
         cres_ids = self.geodata_df["CRES_ID"].tolist()
         lat_, lon_ = self.geodata_df["municip_lat"].tolist(), self.geodata_df["municip_lon"].tolist()
@@ -177,13 +177,14 @@ class CityHospitalFlux(BaseFlux):
                          'name': municip_names[label],
                          'municip_code': mun_code,
                          'macro_id': macro_ids[label],
+                         'macro_new_id': macro_new_ids[label], # -- optional
                          'macro_name': macro_names[label], 
                          'cres_id': cres_ids[label],
                          'lat': lat_[label],
                          'lon': lon_[label] } )
             )
         
-        # -- define nodes defining the hospitals
+        # -- define nodes defining the hospitals (do not include new macro proposal, since not in data)
         hospital_codes = self.cnes_df["CNES"].tolist()
         hospital_municode = self.cnes_df["CODUFMUN"].tolist()
         macro_ids = self.cnes_df["MACRO_ID"].tolist()
@@ -218,6 +219,10 @@ class CityHospitalFlux(BaseFlux):
             Metadata refers to the name and code of a city, and the ids of the
             micro/macro regions for which the city belongs to. 
         '''
+        if 'COMPETEN' in sih_df.columns:
+            self.graph.graph['init_period'] = sih_df["COMPETEN"].min()
+            self.graph.graph['final_period'] = sih_df["COMPETEN"].max()
+
         if icd_filter is not None:
             sih_df["DIAG_PRINC3"] = sih_df["DIAG_PRINC"].apply(lambda x: x[:3])
             if type(icd_filter)==list:
