@@ -12,6 +12,8 @@ import pandas as pd
 from collections import defaultdict
 import networkx as nx
 
+import fluxsus.fluxnets.fnets_utils as futils
+
 class BaseFlux:
     def __init__(self, cnes_df, geodata_df):
         '''
@@ -39,6 +41,8 @@ class BaseFlux:
         self.cnes_df = cnes_df.copy()
         self.geodata_df = geodata_df.copy()
         self.count_sum_edge_with_code = None
+
+        self.cnes_df = self.cnes_df.merge(self.geodata_df[["GEOCOD6", "MACRO_ID", "CRES_ID", "MACRO_NOME"]], left_on="CODUFMUN", right_on="GEOCOD6", how='left').drop("GEOCOD6", axis=1)
 
         self.graph = None
         self.code_to_muni_label = None
@@ -94,25 +98,29 @@ class CityFlux(BaseFlux):
             self.geopos_net.update( {v: np.array([self.graph.nodes[v]['lon'], self.graph.nodes[v]['lat']])} )
         return self
 
-    def calculate_fluxes(self, sih_df, icd_filter=None):
+    def calculate_fluxes(self, sih_df, multilayer_icd=False):
         '''
             Define the directed edges (flux of people and money between cities) of the 
             network and their metadata.
 
             Metadata refers to the name and code of a city, and the ids of the
             micro/macro regions for which the city belongs to. 
+
+            Args:
+            -----
+                sih_df:
+                    pandas.DataFrame.
+                multilayer_icd:
+                    Bool. Whether we should include information of stratified fluxes
+                    based on ICD-10 chapters.
         '''
         # -- define the period of the data that was used to define the fluxes.
         if 'COMPETEN' in sih_df.columns:
             self.graph.graph['init_period'] = sih_df["COMPETEN"].min()
             self.graph.graph['final_period'] = sih_df["COMPETEN"].max()
 
-        if icd_filter is not None:
+        if multilayer_icd:
             sih_df["DIAG_PRINC3"] = sih_df["DIAG_PRINC"].apply(lambda x: x[:3])
-            if type(icd_filter)==list:
-                sih_df = sih_df[sih_df["DIAG_PRINC3"].isin(icd_filter)]
-            elif type(icd_filter)==str:
-                sih_df = sih_df[sih_df["DIAG_PRINC3"]==icd_filter]
 
         self.count_sum_edge_with_code = sih_df.groupby(["MUNIC_RES", "MUNIC_MOV"])["VAL_TOT"].agg(['sum', 'count']).reset_index()
         self.count_sum_edge_with_code = self.count_sum_edge_with_code[self.count_sum_edge_with_code["MUNIC_RES"]!=self.count_sum_edge_with_code["MUNIC_MOV"]]
@@ -130,13 +138,50 @@ class CityFlux(BaseFlux):
         self.count_sum_edge_with_code["MUNIC_MOV"] = self.count_sum_edge_with_code["MUNIC_MOV"].apply(lambda x: self.code_to_muni_label[x])
         count_sum_edge_with_label = self.count_sum_edge_with_code[(self.count_sum_edge_with_code["MUNIC_RES"]!=-1) & (self.count_sum_edge_with_code["MUNIC_MOV"]!=-1)]
 
+        # -- include multilayered information on edges (fluxes stratified by ICD-10 chapter)
+        if multilayer_icd:
+            chapters = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 
+                        'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI',
+                        'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII']
+            for chapter in chapters:
+                ch_codes = futils.filter_chapter(chapter)
+                count_sum_edge_strat_icd = sih_df[sih_df["DIAG_PRINC3"].isin(ch_codes)].groupby(["MUNIC_RES", "MUNIC_MOV"])["VAL_TOT"].agg(['sum', 'count']).reset_index().rename({'sum': f'sum_ch{chapter}', 'count': f'count_ch{chapter}'}, axis=1)
+                count_sum_edge_strat_icd = count_sum_edge_strat_icd[count_sum_edge_strat_icd["MUNIC_RES"]!=count_sum_edge_strat_icd["MUNIC_MOV"]]
+                count_sum_edge_strat_icd["MUNIC_RES"] = count_sum_edge_strat_icd["MUNIC_RES"].apply(lambda x: self.code_to_muni_label[x])
+                count_sum_edge_strat_icd["MUNIC_MOV"] = count_sum_edge_strat_icd["MUNIC_MOV"].apply(lambda x: self.code_to_muni_label[x])
+                count_sum_edge_strat_icd = count_sum_edge_strat_icd[(count_sum_edge_strat_icd["MUNIC_RES"]!=-1) & (count_sum_edge_strat_icd["MUNIC_MOV"]!=-1)]
+                # -- join with the main dataframe
+                count_sum_edge_with_label = count_sum_edge_with_label.merge(count_sum_edge_strat_icd, on=["MUNIC_RES", "MUNIC_MOV"], how='left').fillna(0)
+
         self.edges_metadata = []
         for edge, row in count_sum_edge_with_label.iterrows():
             self.edges_metadata.append(
                 (row["MUNIC_RES"], row["MUNIC_MOV"], {'admission_count': row['count'], 'total_cost': row['sum'], 
                                                       'source_macro': row['source_macro'], 'target_macro': row['target_macro'],
                                                       'source_micro': row['source_cres'], 'target_micro': row['target_cres'],
-                                                      'same_macro' : row['same_macro'], 'same_micro': row['same_micro'] })
+                                                      'same_macro' : row['same_macro'], 'same_micro': row['same_micro'],
+                                                      'admission_count_ch1': row['count_chI'], 'total_cost_ch1': row['sum_chI'],
+                                                      'admission_count_ch2': row['count_chII'], 'total_cost_ch2': row['sum_chII'],
+                                                      'admission_count_ch3': row['count_chIII'], 'total_cost_ch3': row['sum_chIII'],
+                                                      'admission_count_ch4': row['count_chIV'], 'total_cost_ch4': row['sum_chIV'],
+                                                      'admission_count_ch5': row['count_chV'], 'total_cost_ch5': row['sum_chV'],
+                                                      'admission_count_ch6': row['count_chVI'], 'total_cost_ch6': row['sum_chVI'],
+                                                      'admission_count_ch7': row['count_chVII'], 'total_cost_ch7': row['sum_chVII'],
+                                                      'admission_count_ch8': row['count_chVIII'], 'total_cost_ch8': row['sum_chVIII'],
+                                                      'admission_count_ch9': row['count_chIX'], 'total_cost_ch9': row['sum_chIX'],
+                                                      'admission_count_ch10': row['count_chX'], 'total_cost_ch10': row['sum_chX'],
+                                                      'admission_count_ch11': row['count_chXI'], 'total_cost_ch11': row['sum_chXI'],
+                                                      'admission_count_ch12': row['count_chXII'], 'total_cost_ch12': row['sum_chXII'],
+                                                      'admission_count_ch13': row['count_chXIII'], 'total_cost_ch13': row['sum_chXIII'],
+                                                      'admission_count_ch14': row['count_chXIV'], 'total_cost_ch14': row['sum_chXIV'],
+                                                      'admission_count_ch15': row['count_chXV'], 'total_cost_ch15': row['sum_chXV'],
+                                                      'admission_count_ch16': row['count_chXVI'], 'total_cost_ch16': row['sum_chXVI'],
+                                                      'admission_count_ch17': row['count_chXVII'], 'total_cost_ch17': row['sum_chXVII'],
+                                                      'admission_count_ch18': row['count_chXVIII'], 'total_cost_ch18': row['sum_chXVIII'],
+                                                      'admission_count_ch19': row['count_chXIX'], 'total_cost_ch19': row['sum_chXIX'],
+                                                      'admission_count_ch20': row['count_chXX'], 'total_cost_ch20': row['sum_chXX'],
+                                                      'admission_count_ch21': row['count_chXXI'], 'total_cost_ch21': row['sum_chXXI'],
+                                                      'admission_count_ch22': row['count_chXXII'], 'total_cost_ch22': row['sum_chXXII'], })
             )
         self.graph.add_edges_from(self.edges_metadata)
         return self
@@ -211,7 +256,7 @@ class CityHospitalFlux(BaseFlux):
         self.graph.add_nodes_from(self.nodes_metadata)
         return self
 
-    def calculate_fluxes(self, sih_df, icd_filter=None):
+    def calculate_fluxes(self, sih_df, multilayer_icd=False):
         '''
             Define the directed edges (flux of people and money between cities and hospitals) 
             of the network and their metadata.
@@ -223,12 +268,9 @@ class CityHospitalFlux(BaseFlux):
             self.graph.graph['init_period'] = sih_df["COMPETEN"].min()
             self.graph.graph['final_period'] = sih_df["COMPETEN"].max()
 
-        if icd_filter is not None:
+        if multilayer_icd:
             sih_df["DIAG_PRINC3"] = sih_df["DIAG_PRINC"].apply(lambda x: x[:3])
-            if type(icd_filter)==list:
-                sih_df = sih_df[sih_df["DIAG_PRINC3"].isin(icd_filter)]
-            elif type(icd_filter)==str:
-                sih_df = sih_df[sih_df["DIAG_PRINC3"]==icd_filter]
+
 
         # -- total cost (slow way - find faster way - vectorize!)
         self.count_sum_edge_with_code = sih_df.groupby(["MUNIC_RES", "CNES"])["VAL_TOT"].agg(['sum', 'count']).reset_index()
@@ -248,13 +290,50 @@ class CityHospitalFlux(BaseFlux):
         self.count_sum_edge_with_code["CNES"] = self.count_sum_edge_with_code["CNES"].apply(lambda x: self.code_to_hosp_label[x])
         count_sum_edge_with_label = self.count_sum_edge_with_code[(self.count_sum_edge_with_code["MUNIC_RES"]!=-1) & (self.count_sum_edge_with_code["CNES"]!=-1)]
 
+        # -- include multilayered information on edges (fluxes stratified by ICD-10 chapter)
+        if multilayer_icd:
+            chapters = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 
+                        'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI',
+                        'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII']
+            for chapter in chapters:
+                ch_codes = futils.filter_chapter(chapter)
+                count_sum_edge_strat_icd = sih_df[sih_df["DIAG_PRINC3"].isin(ch_codes)].groupby(["MUNIC_RES", "CNES"])["VAL_TOT"].agg(['sum', 'count']).reset_index().rename({'sum': f'sum_ch{chapter}', 'count': f'count_ch{chapter}'}, axis=1)
+                count_sum_edge_strat_icd = count_sum_edge_strat_icd[count_sum_edge_strat_icd["MUNIC_RES"]!=count_sum_edge_strat_icd["CNES"]]
+                count_sum_edge_strat_icd["MUNIC_RES"] = count_sum_edge_strat_icd["MUNIC_RES"].apply(lambda x: self.code_to_muni_label[x])
+                count_sum_edge_strat_icd["CNES"] = count_sum_edge_strat_icd["CNES"].apply(lambda x: self.code_to_muni_label[x])
+                count_sum_edge_strat_icd = count_sum_edge_strat_icd[(count_sum_edge_strat_icd["MUNIC_RES"]!=-1) & (count_sum_edge_strat_icd["CNES"]!=-1)]
+                # -- join with the main dataframe
+                count_sum_edge_with_label = count_sum_edge_with_label.merge(count_sum_edge_strat_icd, on=["MUNIC_RES", "CNES"], how='left').fillna(0)
+
         self.edges_metadata = []
         for edge, row in count_sum_edge_with_label.iterrows():
             self.edges_metadata.append(
                 (row["MUNIC_RES"], row["CNES"], {'admission_count': row['count'], 'total_cost': row['sum'], 
                                                  'source_macro': row['source_macro'], 'target_macro': row['target_macro'],
                                                  'source_micro': row['source_cres'], 'target_micro': row['target_cres'],
-                                                 'same_macro' : row['same_macro'], 'same_micro': row['same_micro'] })
+                                                 'same_macro' : row['same_macro'], 'same_micro': row['same_micro'],
+                                                 'admission_count_ch1': row['count_chI'], 'total_cost_ch1': row['sum_chI'],
+                                                 'admission_count_ch2': row['count_chII'], 'total_cost_ch2': row['sum_chII'],
+                                                 'admission_count_ch3': row['count_chIII'], 'total_cost_ch3': row['sum_chIII'],
+                                                 'admission_count_ch4': row['count_chIV'], 'total_cost_ch4': row['sum_chIV'],
+                                                 'admission_count_ch5': row['count_chV'], 'total_cost_ch5': row['sum_chV'],
+                                                 'admission_count_ch6': row['count_chVI'], 'total_cost_ch6': row['sum_chVI'],
+                                                 'admission_count_ch7': row['count_chVII'], 'total_cost_ch7': row['sum_chVII'],
+                                                 'admission_count_ch8': row['count_chVIII'], 'total_cost_ch8': row['sum_chVIII'],
+                                                 'admission_count_ch9': row['count_chIX'], 'total_cost_ch9': row['sum_chIX'],
+                                                 'admission_count_ch10': row['count_chX'], 'total_cost_ch10': row['sum_chX'],
+                                                 'admission_count_ch11': row['count_chXI'], 'total_cost_ch11': row['sum_chXI'],
+                                                 'admission_count_ch12': row['count_chXII'], 'total_cost_ch12': row['sum_chXII'],
+                                                 'admission_count_ch13': row['count_chXIII'], 'total_cost_ch13': row['sum_chXIII'],
+                                                 'admission_count_ch14': row['count_chXIV'], 'total_cost_ch14': row['sum_chXIV'],
+                                                 'admission_count_ch15': row['count_chXV'], 'total_cost_ch15': row['sum_chXV'],
+                                                 'admission_count_ch16': row['count_chXVI'], 'total_cost_ch16': row['sum_chXVI'],
+                                                 'admission_count_ch17': row['count_chXVII'], 'total_cost_ch17': row['sum_chXVII'],
+                                                 'admission_count_ch18': row['count_chXVIII'], 'total_cost_ch18': row['sum_chXVIII'],
+                                                 'admission_count_ch19': row['count_chXIX'], 'total_cost_ch19': row['sum_chXIX'],
+                                                 'admission_count_ch20': row['count_chXX'], 'total_cost_ch20': row['sum_chXX'],
+                                                 'admission_count_ch21': row['count_chXXI'], 'total_cost_ch21': row['sum_chXXI'],
+                                                 'admission_count_ch22': row['count_chXXII'], 'total_cost_ch22': row['sum_chXXII'], })
             )
         self.graph.add_edges_from(self.edges_metadata)
         return self

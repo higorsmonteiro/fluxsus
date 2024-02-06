@@ -81,7 +81,7 @@ if __name__=="__main__":
     output_folder = os.path.join(datapath, "opendatasus", "sihsus", "PARQUET")
 
     months_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(1,13) ]
-    years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(8,22+1) ]
+    years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(8,23+1) ]
 
     uf = 'CE'
     for year in years_:
