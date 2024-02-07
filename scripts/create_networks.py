@@ -54,21 +54,21 @@ futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE2001', f'RDCE2306', ou
 
 # ---- per year
 for yy in [f'{n}' for n in range(10, 23+1)]:
-    futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE{yy}01', f'RDCE{yy}12', output=os.path.join(output, f"cityfluxnet_agg_{yy}01_{yy}12.gml"))
+    futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE{yy}01', f'RDCE{yy}12', output=os.path.join(output, f"cityfluxnet_slidingwindow_{yy}01_{yy}12.gml"))
 
 # ---- temporal without overlap
 for yy in [f'{n}' for n in range(10, 23+1)]:
     for mm_pair in [('01', '03'), ('04', '06'), ('07', '09'), ('10', '12')]:
         futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE{yy}{mm_pair[0]}', f'RDCE{yy}{mm_pair[1]}', output=os.path.join(output, f"cityfluxnet_noverlap_{yy}{mm_pair[0]}_{yy}{mm_pair[1]}.gml"))
 
-years_ = [ f'{n:2.0f}'.replace(" ", "0") for n in range(10, 23+1) ]
+years_ = [ f'{n:2.0f}'.replace(" ", "0") for n in range(10, 24+1) ]
 months_ = [ f'{n:2.0f}'.replace(" ", "0") for n in range(1, 12+1) ]
 yy_left, yy_right = 0, 0
 mm_left, mm_right = 0, 0+2
 
 init_left = f'{years_[yy_left]}{months_[mm_left]}'
 init_right = f'{years_[yy_right]}{months_[mm_right]}'
-while init_right!='2312':
+while init_right!='2401':
     print(f'({init_left} - {init_right})')
     futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE{init_left}', f'RDCE{init_right}', output=os.path.join(output, f"cityfluxnet_{init_left}_{init_right}.gml"))
 

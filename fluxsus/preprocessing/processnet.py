@@ -114,14 +114,14 @@ class NetProperties:
         return self
 
 
-    def process_infomap_graph(self):
+    def process_infomap_graph(self, weight_people_col='admission_count', weight_cost_col='total_cost'):
         ''' 
             return graph with new node metadata on infomap modules.
         '''
         # -- community algorithms
-        infomap_admcount = f_infomap(self.graph, weight_col='admission_count')
+        infomap_admcount = f_infomap(self.graph, weight_col=weight_people_col)
         #infomap_perhospbed = f_infomap(self.graph, weight_col='outflow_per_hospbed')
-        infomap_cost = f_infomap(self.graph, weight_col='total_cost')
+        infomap_cost = f_infomap(self.graph, weight_col=weight_cost_col)
 
         for u in self.graph.nodes():
             self.graph.nodes[u]['infomap_count_module_id'] = infomap_admcount[int(u)]
@@ -129,16 +129,16 @@ class NetProperties:
             self.graph.nodes[u]['infomap_cost_module_id'] = infomap_cost[int(u)]
         return self
     
-    def process_louvain_graph(self):
+    def process_louvain_graph(self, weight_people_col='admission_count', weight_cost_col='total_cost'):
         ''' 
             return graph with new node metadata on louvain communities.
         '''
         # -- create new weight based on the number of hospital beds
 
         # -- community algorithms
-        louvain_modules_count = nx.community.louvain_communities(self.graph, weight='admission_count')
+        louvain_modules_count = nx.community.louvain_communities(self.graph, weight=weight_people_col)
         #louvain_modules_hospbed = nx.community.louvain_communities(self.graph, weight='outflow_per_hospbed')
-        louvain_modules_cost = nx.community.louvain_communities(self.graph, weight='total_cost')
+        louvain_modules_cost = nx.community.louvain_communities(self.graph, weight=weight_cost_col)
 
         for module_index, nodes in enumerate(louvain_modules_count): 
             for node in list(nodes): self.graph.nodes[node]['louvain_count_module_id'] = module_index+1
