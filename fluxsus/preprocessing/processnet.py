@@ -147,3 +147,9 @@ class NetProperties:
         for module_index, nodes in enumerate(louvain_modules_cost): 
             for node in list(nodes): self.graph.nodes[node]['louvain_cost_module_id'] = module_index+1
         return self.graph
+    
+    def process_sbm_graph(self):
+        '''
+            It requires graph-tool
+        '''
+        pass
