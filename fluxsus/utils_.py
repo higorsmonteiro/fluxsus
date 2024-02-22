@@ -92,7 +92,6 @@ def filter_chapter(chapter: str):
     cid10_chapters['XXI'] = [ 'Z'+f'{n:2.0f}'.replace(' ', '0') for n in range(0, 99+1) ]
     # -- factors influencing health status and contact with health services
     cid10_chapters['XXII'] = [ 'U'+f'{n:2.0f}'.replace(' ', '0') for n in range(0, 99+1) ]
-    
 
     if chapter not in cid10_chapters.keys():
         raise Exception('Chapter not included in the list.')
