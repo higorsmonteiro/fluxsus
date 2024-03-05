@@ -114,7 +114,8 @@ class NetProperties:
         return self
 
 
-    def process_infomap_graph(self, weight_people_col='admission_count', weight_cost_col='total_cost'):
+    def process_infomap_graph(self, weight_people_col='admission_count', weight_cost_col='total_cost', 
+                              people_property_name='infomap_admission_count_module_id', cost_property_name='infomap_cost_module_id'):
         ''' 
             return graph with new node metadata on infomap modules.
         '''
@@ -124,9 +125,9 @@ class NetProperties:
         infomap_cost = f_infomap(self.graph, weight_col=weight_cost_col)
 
         for u in self.graph.nodes():
-            self.graph.nodes[u]['infomap_count_module_id'] = infomap_admcount[int(u)]
+            self.graph.nodes[u][people_property_name] = infomap_admcount[int(u)]
             #self.graph.nodes[u]['infomap_count_per_leito_module_id'] = infomap_perhospbed[int(u)]
-            self.graph.nodes[u]['infomap_cost_module_id'] = infomap_cost[int(u)]
+            self.graph.nodes[u][cost_property_name] = infomap_cost[int(u)]
         return self
     
     def process_louvain_graph(self, weight_people_col='admission_count', weight_cost_col='total_cost'):

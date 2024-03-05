@@ -9,7 +9,7 @@ def f_infomap(graph, weight_col="admission_count"):
     
     '''
     # -- command line flags can be added as a string to Infomap
-    im = Infomap(directed=True)
+    im = Infomap(directed=True, num_trials=5)
 
     # -- add nodes and links
     for v in range(graph.number_of_nodes()):
