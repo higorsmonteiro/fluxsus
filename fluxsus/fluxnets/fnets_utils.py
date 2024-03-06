@@ -1,5 +1,6 @@
 import os
 import glob
+import numpy as np
 from tqdm import tqdm
 import pandas as pd
 from collections import defaultdict
@@ -99,6 +100,162 @@ def create_cityhospitalnet(sihpath, cnes_df, geodata_df, init_period, final_peri
     # -- generate network
     cityhospitalflux = CityHospitalFlux(cnes_df, geodata_df)
     cityhospitalflux.define_network().calculate_fluxes(sih_df, multilayer_icd=True).to_gml(output)
+
+
+def list_of_cnes_with_aih(sihpath, init_period, final_period):
+    '''
+        Select only the brazilian health units (CNES) who generated at least one AIH during
+        the given period.
+
+        Period is defined with the month and year of competence of the SIHSUS file.
+
+        Args:
+        -----
+            sihpath:
+                String.
+            init:
+                String. Format "XXUFYYMM", where 'XX' stands for the preffix of the
+                SIHSUS file (as described by DATASUS), 'UF' stands for state code to
+                consider, and "YYMM" stands for the year and month of the beginning
+                of the period.
+            final:
+                String. Format "XXUFYYMM", where 'XX' stands for the preffix of the
+                SIHSUS file (as described by DATASUS), 'UF' stands for state code to
+                consider, and "YYMM" stands for the year and month of the beginning
+                of the period.
+            output:
+                String.
+    '''
+    preffix = init_period[:4]
+    list_of_files = glob.glob(os.path.join(sihpath, f'{preffix}*'))
+
+    init_index = [idx for idx, s in enumerate(list_of_files) if init_period in s][0]
+    final_index = [idx for idx, s in enumerate(list_of_files) if final_period in s][0]
+    if final_index is None:
+        raise Exception(f"no file {final_period} was found.")
+    list_of_files = list_of_files[init_index:final_index+1]
+
+    list_of_cnes = []
+    for fname in tqdm(list_of_files):
+        cur_df = pd.read_parquet(fname)
+        cnes_unique = cur_df["CNES"].unique().tolist()
+        list_of_cnes += cnes_unique
+    list_of_cnes = list(set(list_of_cnes))
+    return list_of_cnes
+
+def cca_health(sector_rel, hospital_rel, lsector, lhos, ident_col="IDENT"):
+    '''
+        City Clustering Algorithm (CCA) with health units as seeds.
+
+        Args:
+            sector_rel:
+                geopandas.GeoDataFrame. Data containing two columns, an identifier 
+                and a geometry column representing the centroid of the sector.
+            hospital_rel:
+                geopandas.GeoDataFrame. Data containing two columns, an identifier named 
+                'CNES' and a geometry column representing the geolocation (latitude, longitude) 
+                of the health unit.
+            lsector:
+                Float. Sector radius (in kilometers). Distance from a health unit in a given
+                CCA cluster to define the sectors belonging to the cluster.
+            lhos:
+                Float. Hospital radius (in kilometers). CCA parameter representing the
+                distance between health units.
+    '''
+    # -- uniform projection
+    hospital_rel = hospital_rel.to_crs(epsg=29194)
+    sector_rel = sector_rel.to_crs(epsg=29194)
+
+    # -- create circular buffer around each health unit to compare distance with sectors
+    hospital_rel_temp = hospital_rel.copy() 
+    hospital_rel_temp["circle_geometry"] = hospital_rel_temp["geometry"].apply(lambda x: x.buffer(lsector*1000))
+    hospital_rel_temp = hospital_rel_temp.drop('geometry', axis=1).rename({'circle_geometry': 'geometry'}, axis=1)
+
+    sector_to_hospital = defaultdict(lambda: [], zip(sector_rel[ident_col], [ [] for n in range(sector_rel.shape[0]) ]))
+    # ---- verify which point belongs to which hospital 
+    # ---- (a point might belong to more than one hospital)
+    for index in range(hospital_rel_temp.shape[0]):
+        current_cnes = hospital_rel_temp[ident_col].iloc[index]
+        current_polygon = hospital_rel_temp.geometry.iloc[index]
+
+        # -- verification
+        cod_setores = sector_rel[sector_rel.geometry.within(current_polygon)][ident_col].tolist()
+        if len(cod_setores)>0:
+            [ sector_to_hospital[current_sector_cod].append(current_cnes) for current_sector_cod in cod_setores ]
+
+    # -- create circular buffer around each health unit to compare distance between health units
+    hospital_rel_temp = hospital_rel.copy() 
+    hospital_rel_temp["circle_geometry"] = hospital_rel_temp["geometry"].apply(lambda x: x.buffer(lhos*1000))
+    hospital_rel_temp = hospital_rel_temp.drop('geometry', axis=1).rename({'circle_geometry': 'geometry'}, axis=1)
+    
+    # ---- verify which hospital is neighbor of which hospital
+    hospital_to_hospital = defaultdict(lambda: [])
+    for index in range(hospital_rel_temp.shape[0]):
+        current_cnes = hospital_rel_temp[ident_col].iloc[index]
+        current_polygon = hospital_rel_temp.geometry.iloc[index]
+    
+        # -- verification
+        cod_cnes = hospital_rel[hospital_rel.geometry.within(current_polygon)][ident_col].tolist()
+        for found_cnes in cod_cnes:
+            hospital_to_hospital[current_cnes].append(found_cnes)
+
+    # -- merge clusters of hospitals
+    root_lst = [ -1 for n in range(len(hospital_to_hospital.keys())) ]
+    code_lst = list(sorted(hospital_to_hospital.keys()))
+    code_to_index = { cnes: index for index, cnes in enumerate(sorted(hospital_to_hospital.keys())) }
+
+    for n in range(len(root_lst)):
+        node_index1 = n
+        node_code1 = code_lst[n]
+        neighbors_indexes = [ code_to_index[neighbor] for neighbor in hospital_to_hospital[node_code1] ]
+
+        for neighbor in neighbors_indexes:
+            root1 = find_root(node_index1, root_lst)
+            root2 = find_root(neighbor, root_lst)
+
+            if root1!=root2:
+                root_lst = merge_root(root_lst, root1, node_index1, root2, neighbor)
+                break
+
+    modules = [ find_root(n, root_lst) for n in range(len(root_lst)) ]
+    hospital_to_module = { code_lst[n]: find_root(n, root_lst) for n in range(len(root_lst)) }
+
+    # -- set sector to their respective modules
+    sector_to_module = defaultdict(lambda: [])
+    for sector, hospitals in sector_to_hospital.items():
+        if len(hospitals):
+            modules_of_sector = [ hospital_to_module[hospital] for hospital in hospitals ]
+            unique_modules, counts = np.unique(modules_of_sector, return_counts=True)
+            # -- if sector belongs to more than one module, decides based on voting
+            # -- if a module 'j' is more frequent, then the sector belongs to it, if there 
+            # -- is a draw, break a tie.
+            final_module = unique_modules[np.argmax(counts)]
+            sector_to_module[sector] = final_module
+        else:
+            sector_to_module[sector] = -1
+
+    return sector_to_module, hospital_to_module
+
+
+
+# ---- basic find and merge procedure
+def find_root(index, root_lst):
+    temp_index = index
+    while root_lst[temp_index]>-1:
+        temp_index = root_lst[temp_index]
+    return temp_index
+
+def merge_root(root_lst, root1, node1, root2, node2):
+    larger_root, larger_node = root1, node1
+    smaller_root, smaller_node = root2, node2
+    # -- if cluster 2 is larger than cluster 1 (negative scale)
+    if root_lst[root1]>root_lst[root2]:
+        larger_root, larger_node = root2, node2
+        smaller_root, smaller_node = root1, node1
+
+    root_lst[larger_root]+= root_lst[smaller_root]
+    root_lst[smaller_root] = larger_root
+    return root_lst
 
 
 def filter_chapter(chapter: str):
