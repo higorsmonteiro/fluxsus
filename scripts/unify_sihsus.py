@@ -29,6 +29,24 @@ def sihsus_to_parquet(dbf_fname: str, path_to_file: str, output_fname: str, outp
     sih_df["DT_SAIDA"] = pd.to_datetime(sih_df["DT_SAIDA"], format="%Y%m%d", errors="coerce")
     sih_df[selected_fields].to_parquet(os.path.join(output_path, output_fname))
 
+def siasus_to_parquet(dbf_fname: str, path_to_file: str, output_fname: str, output_path: str):
+    '''
+        Convert SIASUS DBF file to parquet for fast throughput.
+
+        Args:
+        -----
+            dbf_fname:
+                String. Name of the DBF file (with extension).
+            path_to_file:
+                String. Complete path to the DBF file.
+            output_path:
+                ...
+    '''
+    sih_df = DBFIX( os.path.join(path_to_file, dbf_fname), codec='latin' ).to_dataframe()
+    #sih_df["DT_INTER"] = pd.to_datetime(sih_df["DT_INTER"], format="%Y%m%d", errors="coerce")
+    #sih_df["DT_SAIDA"] = pd.to_datetime(sih_df["DT_SAIDA"], format="%Y%m%d", errors="coerce")
+    sih_df.to_parquet(os.path.join(output_path, output_fname))
+
 
 def export_sihsus_year(uf : str, year : int, path_to_files : str):
     '''
