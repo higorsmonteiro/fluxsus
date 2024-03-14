@@ -47,7 +47,6 @@ def siasus_to_parquet(dbf_fname: str, path_to_file: str, output_fname: str, outp
     #sih_df["DT_SAIDA"] = pd.to_datetime(sih_df["DT_SAIDA"], format="%Y%m%d", errors="coerce")
     sih_df.to_parquet(os.path.join(output_path, output_fname))
 
-
 def export_sihsus_year(uf : str, year : int, path_to_files : str):
     '''
         Aggregate the monthly data from SIHSUS into year data exported into 

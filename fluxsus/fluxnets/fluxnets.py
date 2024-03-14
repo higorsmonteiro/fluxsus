@@ -98,7 +98,7 @@ class CityFlux(BaseFlux):
             self.geopos_net.update( {v: np.array([self.graph.nodes[v]['lon'], self.graph.nodes[v]['lat']])} )
         return self
 
-    def calculate_fluxes(self, sih_df, multilayer_icd=False):
+    def calculate_fluxes(self, sih_df, multilayer_icd=False, self_edges=False):
         '''
             Define the directed edges (flux of people and money between cities) of the 
             network and their metadata.
@@ -123,7 +123,9 @@ class CityFlux(BaseFlux):
             sih_df["DIAG_PRINC3"] = sih_df["DIAG_PRINC"].apply(lambda x: x[:3])
 
         self.count_sum_edge_with_code = sih_df.groupby(["MUNIC_RES", "MUNIC_MOV"])["VAL_TOT"].agg(['sum', 'count']).reset_index()
-        self.count_sum_edge_with_code = self.count_sum_edge_with_code[self.count_sum_edge_with_code["MUNIC_RES"]!=self.count_sum_edge_with_code["MUNIC_MOV"]]
+        # -- if 'self_edges' is False, removes self-edges of the network.
+        if not self_edges:
+            self.count_sum_edge_with_code = self.count_sum_edge_with_code[self.count_sum_edge_with_code["MUNIC_RES"]!=self.count_sum_edge_with_code["MUNIC_MOV"]]
         # -- get source node info
         self.count_sum_edge_with_code = self.count_sum_edge_with_code.merge(self.geodata_df[["GEOCOD6", "MACRO_ID", "CRES_ID", "MACRO_NOME"]], left_on="MUNIC_RES", right_on="GEOCOD6", how="left")
         self.count_sum_edge_with_code = self.count_sum_edge_with_code.rename({"MACRO_ID": "source_macro", "CRES_ID": "source_cres", "MACRO_NOME": "source_macro_nome"}, axis=1)

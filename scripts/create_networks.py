@@ -31,6 +31,13 @@ futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE1801', f'RDCE2306', ou
 futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE2001', f'RDCE2212', output=os.path.join(output, f"cityfluxnet_agg_2001_2212.gml"))
 futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE2001', f'RDCE2306', output=os.path.join(output, f"cityfluxnet_agg_2001_2306.gml"))
 
+# ---- larger agg with self edges
+futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE1301', f'RDCE2212', output=os.path.join(output, f"cityfluxnet_agg_self_1301_2212.gml"), self_edges=True)
+futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE1801', f'RDCE2212', output=os.path.join(output, f"cityfluxnet_agg_self_1801_2212.gml"), self_edges=True)
+futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE1801', f'RDCE2306', output=os.path.join(output, f"cityfluxnet_agg_self_1801_2306.gml"), self_edges=True)
+futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE2001', f'RDCE2212', output=os.path.join(output, f"cityfluxnet_agg_self_2001_2212.gml"), self_edges=True)
+futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE2001', f'RDCE2306', output=os.path.join(output, f"cityfluxnet_agg_self_2001_2306.gml"), self_edges=True)
+
 # ---- per year
 for yy in [f'{n}' for n in range(10, 23+1)]:
     futils.create_citynet(sihpath, cnes_df, geodata_df, f'RDCE{yy}01', f'RDCE{yy}12', output=os.path.join(output, f"cityfluxnet_agg_{yy}01_{yy}12.gml"))

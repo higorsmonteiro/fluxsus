@@ -7,7 +7,7 @@ from collections import defaultdict
 from fluxsus.DBFIX import DBFIX
 from fluxsus.fluxnets.fluxnets import CityFlux, CityHospitalFlux
 
-def create_citynet(sihpath, cnes_df, geodata_df, init_period, final_period, output):
+def create_citynet(sihpath, cnes_df, geodata_df, init_period, final_period, output, self_edges=False):
     '''
         Create a city flux network for a given period.
 
@@ -33,6 +33,8 @@ def create_citynet(sihpath, cnes_df, geodata_df, init_period, final_period, outp
                 of the period.
             output:
                 String.
+            self_edges:
+                Bool. Whether to include self-edges in the flux network.
     '''
     preffix = init_period[:4]
     list_of_files = glob.glob(os.path.join(sihpath, f'{preffix}*'))
@@ -52,7 +54,7 @@ def create_citynet(sihpath, cnes_df, geodata_df, init_period, final_period, outp
 
     # -- generate network
     cityflux = CityFlux(cnes_df, geodata_df)
-    cityflux.define_network().calculate_fluxes(sih_df, multilayer_icd=True).to_gml(output)
+    cityflux.define_network().calculate_fluxes(sih_df, multilayer_icd=True, self_edges=self_edges).to_gml(output)
 
 def create_cityhospitalnet(sihpath, cnes_df, geodata_df, init_period, final_period, output):
     '''

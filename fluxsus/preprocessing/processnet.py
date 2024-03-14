@@ -46,13 +46,12 @@ class NetProperties:
             self.graph.nodes[u][people_property_name] = 0
             self.graph.nodes[u][cost_property_name] = 0
             for e in in_edges:
+                # -- do not include self edges
+                if e[0]==e[1]:
+                    continue
                 self.graph.nodes[u][people_property_name] += self.graph.edges[e][weight_people_col]
                 self.graph.nodes[u][cost_property_name] += self.graph.edges[e][weight_cost_col]
 
-        # -- create new weight based on the number of hospital beds
-        #for u, v in self.graph.edges():
-        #    numleitos = self.graph.nodes[u]['numleitos']
-        #    self.graph.edges[(u,v)]['outflow_per_hospbed'] = self.graph.edges[(u,v)]['admission_count']/numleitos
         return self
     
 
@@ -88,9 +87,51 @@ class NetProperties:
             self.graph.nodes[u][people_property_name] = 0
             self.graph.nodes[u][cost_property_name] = 0
             for e in out_edges:
+                # -- do not include self edges
+                if e[0]==e[1]:
+                    continue
                 self.graph.nodes[u][people_property_name] += self.graph.edges[e][weight_people_col]
                 self.graph.nodes[u][cost_property_name] += self.graph.edges[e][weight_cost_col]
 
+        return self
+    
+    def calculate_internal_flow(self, weight_people_col=None, weight_cost_col=None, 
+                                people_property_name='internal_people', 
+                                cost_property_name='internal_cost'):
+        ''' 
+            Given a directed graph, calculate the total internal flow of
+            individuals and/or costs per node.
+
+            Args:
+            -----
+                graph:
+                    networkx.DiGraph.
+                weight_people_col:
+                    String. Name of the edge property that should be used to 
+                    calculate the flow of people.
+                weight_cost_col:
+                    String. Name of the edge property that should be used to 
+                    calculate the flow of costs (BRL).
+            Return:
+            -------
+                graph:
+                    networkx.DiGraph. The input network augmented with new node
+                    properties referring to the total flows calculated.
+        '''
+        if not nx.is_directed(self.graph):
+            raise Exception('self.graph parsed is not directed.')
+
+        # -- aggregate outgoing information
+        for u in self.graph.nodes():
+            out_edges = [ e for e in self.graph.out_edges(u) ]
+            self.graph.nodes[u][people_property_name] = 0
+            self.graph.nodes[u][cost_property_name] = 0
+            for e in out_edges:
+                # -- include only self edges
+                if e[0]!=e[1]:
+                    continue
+                self.graph.nodes[u][people_property_name] += self.graph.edges[e][weight_people_col]
+                self.graph.nodes[u][cost_property_name] += self.graph.edges[e][weight_cost_col]
         return self
 
     def get_hospitalbeds(self, cnes_df, geodata_df):
