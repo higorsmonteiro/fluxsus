@@ -2,6 +2,7 @@ import os
 import sys
 sys.path.append("..")
 
+from pathlib import Path
 import pandas as pd
 from fluxsus.DBFIX import DBFIX
 
@@ -93,19 +94,32 @@ def export_sihsus_year(uf : str, year : int, path_to_files : str):
     
 if __name__=="__main__":
     # -- change any path according to your own inputs and outputs.
-    datapath = os.path.join(os.environ["HOMEPATH"], "Documents", "data")
-    input_folder = os.path.join(datapath, "opendatasus", "sihsus", "DBF")
-    output_folder = os.path.join(datapath, "opendatasus", "sihsus", "PARQUET")
+    datapath = Path.home().joinpath("Documents", "data")
+    input_folder = datapath.joinpath("opendatasus", "siasus", "DBF")
+    output_folder = datapath.joinpath("opendatasus", "siasus", "PARQUET")
+    #datapath = os.path.join(os.environ["HOMEPATH"], "Documents", "data")
+    #input_folder = os.path.join(datapath, "opendatasus", "sihsus", "DBF")
+    #output_folder = os.path.join(datapath, "opendatasus", "sihsus", "PARQUET")
 
     months_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(1,13) ]
-    years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(8,23+1) ]
+    years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(17,23+1) ]
 
+    # -- sihsus
+    #uf = 'CE'
+    #for year in years_:
+    #    for month in months_:
+    #        fname = f'RD{uf}{year}{month}'
+    #        print(f'Arquivo {fname} ... ', end='')
+    #        sihsus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
+    #        print(f'feito.')
+
+    # -- siasus
     uf = 'CE'
     for year in years_:
         for month in months_:
-            fname = f'RD{uf}{year}{month}'
+            fname = f'ATD{uf}{year}{month}'
             print(f'Arquivo {fname} ... ', end='')
-            sihsus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
+            siasus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
             print(f'feito.')
 
 
