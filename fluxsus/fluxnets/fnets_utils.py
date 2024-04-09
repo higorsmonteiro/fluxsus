@@ -238,6 +238,82 @@ def cca_health(sector_rel, hospital_rel, lsector, lhos, ident_col="IDENT"):
 
     return sector_to_module, hospital_to_module
 
+def cca(sector_rel, lsector, pop_threshold, ident_col="IDENT", pop_col="Pop"):
+    '''
+        City Clustering Algorithm (CCA).
+
+        Args:
+            sector_rel:
+                geopandas.GeoDataFrame. Data containing two columns, an identifier 
+                and a geometry column representing the centroid of the sector.
+            lsector:
+                Float. Sector radius (in kilometers). Distance from a health unit in a given
+                CCA cluster to define the sectors belonging to the cluster.
+            pop_threshold:
+                Integer. 
+    '''
+    # -- uniform projection
+    sector_rel = sector_rel.to_crs(epsg=29194)
+
+    # -- create circular buffer around each census sectors to compare distance between them
+    sector_rel_temp = sector_rel.copy()
+    sector_rel_temp["circle_geometry"] = sector_rel_temp["geometry"].apply(lambda x: x.buffer(lsector*1000))
+    sector_rel_temp = sector_rel_temp.drop('geometry', axis=1).rename({'circle_geometry': 'geometry'}, axis=1)
+
+    sector_to_sector = defaultdict(lambda: [], zip(sector_rel[ident_col], [ [] for n in range(sector_rel.shape[0]) ]))
+    # ---- verify which point belongs to which hospital 
+    # ---- (a point might belong to more than one hospital)
+    for index in range(sector_rel_temp.shape[0]):
+        current_sector = sector_rel_temp[ident_col].iloc[index]
+        current_polygon = sector_rel_temp.geometry.iloc[index]
+        current_pop = sector_rel_temp[pop_col].iloc[index]
+        if current_pop<=pop_threshold:
+            continue
+
+        # -- verification
+        #cod_setores = sector_rel[sector_rel.geometry.within(current_polygon)][ident_col].tolist()
+        cod_setores = sector_rel[sector_rel.geometry.within(current_polygon)]
+        cod_setores = cod_setores[cod_setores[pop_col]>pop_threshold][ident_col].tolist()
+        if len(cod_setores)>0:
+            [ sector_to_sector[current_sector_cod].append(current_sector) for current_sector_cod in cod_setores ]
+
+    # -- merge clusters of sectors
+    root_lst = [ -1 for n in range(len(sector_to_sector.keys())) ]
+    code_lst = list(sorted(sector_to_sector.keys()))
+    code_to_index = { codsec: index for index, codsec in enumerate(sorted(sector_to_sector.keys())) }
+
+    for n in range(len(root_lst)):
+        node_index1 = n
+        node_code1 = code_lst[n]
+        neighbors_indexes = [ code_to_index[neighbor] for neighbor in sector_to_sector[node_code1] ]
+
+        for neighbor in neighbors_indexes:
+            root1 = find_root(node_index1, root_lst)
+            root2 = find_root(neighbor, root_lst)
+
+            if root1!=root2:
+                root_lst = merge_root(root_lst, root1, node_index1, root2, neighbor)
+                break
+
+    modules = [ find_root(n, root_lst) for n in range(len(root_lst)) ]
+    sector_to_module = { code_lst[n]: find_root(n, root_lst) for n in range(len(root_lst)) }
+
+    # -- set sector to their respective modules
+    #sector_to_module = defaultdict(lambda: [])
+    #for sector, hospitals in sector_to_sector.items():
+    #    if len(hospitals):
+    #        modules_of_sector = [ sector_to_module[hospital] for hospital in hospitals ]
+    #        unique_modules, counts = np.unique(modules_of_sector, return_counts=True)
+    #        # -- if sector belongs to more than one module, decides based on voting
+    #        # -- if a module 'j' is more frequent, then the sector belongs to it, if there 
+    #        # -- is a draw, break a tie.
+    #        final_module = unique_modules[np.argmax(counts)]
+    #        sector_to_module[sector] = final_module
+    #    else:
+    #        sector_to_module[sector] = -1
+
+    return sector_to_module
+
 
 
 # ---- basic find and merge procedure
