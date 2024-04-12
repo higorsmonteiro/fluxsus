@@ -155,15 +155,15 @@ class NetProperties:
         return self
 
 
-    def process_infomap_graph(self, weight_people_col='admission_count', weight_cost_col='total_cost', 
+    def process_infomap_graph(self, trials=5, weight_people_col='admission_count', weight_cost_col='total_cost', 
                               people_property_name='infomap_admission_count_module_id', cost_property_name='infomap_cost_module_id'):
         ''' 
             return graph with new node metadata on infomap modules.
         '''
         # -- community algorithms
-        infomap_admcount = f_infomap(self.graph, weight_col=weight_people_col)
+        infomap_admcount = f_infomap(self.graph, weight_col=weight_people_col, trials=trials)
         #infomap_perhospbed = f_infomap(self.graph, weight_col='outflow_per_hospbed')
-        infomap_cost = f_infomap(self.graph, weight_col=weight_cost_col)
+        infomap_cost = f_infomap(self.graph, weight_col=weight_cost_col, trials=trials)
 
         for u in self.graph.nodes():
             self.graph.nodes[u][people_property_name] = infomap_admcount[int(u)]

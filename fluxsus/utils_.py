@@ -4,12 +4,11 @@ from collections import defaultdict
 from infomap import Infomap
 
 
-def f_infomap(graph, weight_col="admission_count"):
+def f_infomap(graph, weight_col="admission_count", trials=5):
     '''
     
     '''
-    # -- command line flags can be added as a string to Infomap
-    im = Infomap(directed=True, num_trials=5)
+    im = Infomap(directed=True, num_trials=trials)
 
     # -- add nodes and links
     for v in range(graph.number_of_nodes()):
