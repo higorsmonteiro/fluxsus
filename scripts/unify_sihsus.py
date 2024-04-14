@@ -28,7 +28,8 @@ def sihsus_to_parquet(dbf_fname: str, path_to_file: str, output_fname: str, outp
     sih_df = DBFIX( os.path.join(path_to_file, dbf_fname), codec='latin' ).to_dataframe()
     sih_df["DT_INTER"] = pd.to_datetime(sih_df["DT_INTER"], format="%Y%m%d", errors="coerce")
     sih_df["DT_SAIDA"] = pd.to_datetime(sih_df["DT_SAIDA"], format="%Y%m%d", errors="coerce")
-    sih_df[selected_fields].to_parquet(os.path.join(output_path, output_fname))
+    #sih_df[selected_fields].to_parquet(os.path.join(output_path, output_fname))
+    sih_df.to_parquet(os.path.join(output_path, output_fname))
 
 def siasus_to_parquet(dbf_fname: str, path_to_file: str, output_fname: str, output_path: str):
     '''
@@ -73,7 +74,7 @@ def export_sihsus_year(uf : str, year : int, path_to_files : str):
         'ESPEC', 'N_AIH', 'ANO_CMPT', 'CNES', 'IDENT', 'MUNIC_RES', 'MARCA_UTI', 
         'VAL_SH', 'VAL_SP', 'VAL_TOT', 'VAL_UTI', 'DT_INTER', 'DT_SAIDA', 
         'DIAG_PRINC', 'DIAG_SECUN', 'COBRANCA', 'NATUREZA', 'GESTAO', 'MUNIC_MOV', 
-        'MORTE', 'COMPLEX', 'COMPETEN'
+        'MORTE', 'COMPLEX', 'COMPETEN', 'IDADE'
     ]
     year_str = f"{year}"[2:]
     month_lst = [ f'{n:2.0f}'.replace(' ', '0') for n in range(1,13) ]
@@ -83,7 +84,8 @@ def export_sihsus_year(uf : str, year : int, path_to_files : str):
         fname = f"RD{uf.upper()}{year_str}{month}.dbf"
         try:
             cur_df = DBFIX( os.path.join(path_to_files, fname), codec='latin' ).to_dataframe()
-            sih_df.append( cur_df[variables].copy() )
+            sih_df.append( cur_df )
+            #sih_df.append( cur_df[variables].copy() )
         except:
             pass
     
@@ -95,32 +97,31 @@ def export_sihsus_year(uf : str, year : int, path_to_files : str):
 if __name__=="__main__":
     # -- change any path according to your own inputs and outputs.
     datapath = Path.home().joinpath("Documents", "data")
-    input_folder = datapath.joinpath("opendatasus", "siasus", "DBF")
-    output_folder = datapath.joinpath("opendatasus", "siasus", "PARQUET")
-    #datapath = os.path.join(os.environ["HOMEPATH"], "Documents", "data")
-    #input_folder = os.path.join(datapath, "opendatasus", "sihsus", "DBF")
-    #output_folder = os.path.join(datapath, "opendatasus", "sihsus", "PARQUET")
+    input_folder = datapath.joinpath("opendatasus", "sihsus", "DBF")
+    output_folder = datapath.joinpath("opendatasus", "sihsus", "PARQUET")
 
     months_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(1,13) ]
-    years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(17,23+1) ]
+    years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(8,23+1) ]
 
     # -- sihsus
+    ufs = ['AL', 'BA', 'MA', 'CE', 'RN', 'SE', 'PI', 'PB', 'PE']
+    ufs = ['SC', 'PR', 'RS']
+    for uf in ufs:
+        for year in years_:
+            for month in months_:
+                fname = f'RD{uf}{year}{month}'
+                print(f'Arquivo {fname} ... ', end='')
+                sihsus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
+                print(f'feito.')
+
+    # -- siasus
     #uf = 'CE'
     #for year in years_:
     #    for month in months_:
-    #        fname = f'RD{uf}{year}{month}'
+    #        fname = f'ATD{uf}{year}{month}'
     #        print(f'Arquivo {fname} ... ', end='')
-    #        sihsus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
+    #        siasus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
     #        print(f'feito.')
-
-    # -- siasus
-    uf = 'CE'
-    for year in years_:
-        for month in months_:
-            fname = f'ATD{uf}{year}{month}'
-            print(f'Arquivo {fname} ... ', end='')
-            siasus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
-            print(f'feito.')
 
 
     #uf = "CE"
