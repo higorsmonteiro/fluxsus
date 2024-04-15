@@ -161,9 +161,9 @@ class NetProperties:
             return graph with new node metadata on infomap modules.
         '''
         # -- community algorithms
-        infomap_admcount = f_infomap(self.graph, weight_col=weight_people_col, trials=trials)
+        infomap_admcount, codelength_admcount = f_infomap(self.graph, weight_col=weight_people_col, trials=trials)
         #infomap_perhospbed = f_infomap(self.graph, weight_col='outflow_per_hospbed')
-        infomap_cost = f_infomap(self.graph, weight_col=weight_cost_col, trials=trials)
+        infomap_cost, codelength_cost = f_infomap(self.graph, weight_col=weight_cost_col, trials=trials)
 
         for u in self.graph.nodes():
             self.graph.nodes[u][people_property_name] = infomap_admcount[int(u)]

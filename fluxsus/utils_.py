@@ -24,7 +24,7 @@ def f_infomap(graph, weight_col="admission_count", trials=5):
     node_module = {}
     for node in im.tree:
         node_module.update({node.node_id: node.module_id})
-    return node_module
+    return node_module, im.codelength
 
 def filter_chapter(chapter: str):
     '''
