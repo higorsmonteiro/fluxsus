@@ -106,6 +106,7 @@ if __name__=="__main__":
     # -- sihsus
     ufs = ['AL', 'BA', 'MA', 'CE', 'RN', 'SE', 'PI', 'PB', 'PE']
     ufs = ['SC', 'PR', 'RS']
+    ufs = ['ES', 'MG', 'RJ', 'SP']
     for uf in ufs:
         for year in years_:
             for month in months_:
