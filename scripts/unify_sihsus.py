@@ -100,14 +100,14 @@ if __name__=="__main__":
     input_folder = datapath.joinpath("opendatasus", "sihsus", "DBF")
     output_folder = datapath.joinpath("opendatasus", "sihsus", "PARQUET")
 
-    months_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(1,13) ]
-    years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(8,23+1) ]
+    months_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(1,3) ]
+    years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(23,25+1) ]
 
     # -- sihsus
-    ufs = ['AL', 'BA', 'MA', 'CE', 'RN', 'SE', 'PI', 'PB', 'PE']
-    ufs = ['SC', 'PR', 'RS']
-    ufs = ['ES', 'MG', 'RJ', 'SP']
-    for uf in ufs:
+    uf_ne = ['AL', 'BA', 'MA', 'CE', 'RN', 'SE', 'PI', 'PB', 'PE']
+    uf_sul = ['SC', 'PR', 'RS']
+    uf_sudeste = ['ES', 'MG', 'RJ', 'SP']
+    for uf in uf_ne+uf_sul+uf_sudeste:
         for year in years_:
             for month in months_:
                 fname = f'RD{uf}{year}{month}'
