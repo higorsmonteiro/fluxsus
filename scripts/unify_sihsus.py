@@ -100,6 +100,8 @@ if __name__=="__main__":
     input_folder = datapath.joinpath("opendatasus", "sihsus", "DBF")
     output_folder = datapath.joinpath("opendatasus", "sihsus", "PARQUET")
 
+    dbf_files = [ fname for fname in input_folder.glob("*") ]
+
     months_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(1,3) ]
     years_ = [ f'{n:2.0f}'.replace(' ', '0') for n in range(23,25+1) ]
 
@@ -107,13 +109,24 @@ if __name__=="__main__":
     uf_ne = ['AL', 'BA', 'MA', 'CE', 'RN', 'SE', 'PI', 'PB', 'PE']
     uf_sul = ['SC', 'PR', 'RS']
     uf_sudeste = ['ES', 'MG', 'RJ', 'SP']
-    for uf in uf_ne+uf_sul+uf_sudeste:
-        for year in years_:
-            for month in months_:
-                fname = f'RD{uf}{year}{month}'
-                print(f'Arquivo {fname} ... ', end='')
-                sihsus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
-                print(f'feito.')
+    uf_centro = ['GO', 'MS', 'MT', 'DF']
+    uf_norte = ['AM', 'PA', 'AC', 'RR', 'RO', 'AP', 'TO']
+
+    for uf in uf_centro+uf_norte+uf_ne+uf_sudeste+uf_sul:
+        subset_files = [ fname for fname in dbf_files if uf in fname.stem ]
+        for fname in subset_files:
+            print(f'Arquivo {fname.name} ... ', end='')
+            sihsus_to_parquet(fname.stem+'.DBF', input_folder, fname.stem+'.parquet', output_folder)
+            print(f'feito.')
+    
+    
+    #for uf in uf_centro+uf_norte:
+    #    for year in years_:
+    #        for month in months_:
+    #            fname = f'RD{uf}{year}{month}'
+    #            print(f'Arquivo {fname} ... ', end='')
+    #            sihsus_to_parquet(fname+'.DBF', input_folder, fname+'.parquet', output_folder)
+    #            print(f'feito.')
 
     # -- siasus
     #uf = 'CE'
